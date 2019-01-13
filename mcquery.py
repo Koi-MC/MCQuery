@@ -19,18 +19,18 @@ class MCQuery:
         self.handshake()
     
     def write_packet(self, type, payload):
-        o = '\xFE\xFD' + struct.pack('>B', type) + struct.pack('>l', self.id) + payload
+        o = b'\xFE\xFD' + struct.pack('>B', type) + struct.pack('>l', self.id) + payload
         self.socket.sendto(o, self.addr)
     
     def read_packet(self):
         buff = self.socket.recvfrom(2048)[0]
-        type = struct.unpack('>B', buff[0])[0]
+        type = buff[0]
         id   = struct.unpack('>l', buff[1:5])[0]
         return type, id, buff[5:]
     
     def handshake(self):
         self.id += 1
-        self.write_packet(9, '')
+        self.write_packet(9, b'')
         try:
             type, id, buff = self.read_packet()
         except:
@@ -57,7 +57,7 @@ class MCQuery:
         #buff = buff[4:]
         
         #Grab the first 5 string fields
-        data['motd'], data['gametype'], data['map'], data['numplayers'], data['maxplayers'], buff = buff.split('\x00', 5)
+        data['motd'], data['gametype'], data['map'], data['numplayers'], data['maxplayers'], buff = buff.split(b'\x00', 5)
         
         #Unpack a big-endian short for the port
         data['hostport'] = struct.unpack('<h', buff[:2])[0]
@@ -73,7 +73,7 @@ class MCQuery:
     
     def full_stat(self):
         #Pad request to 8 bytes
-        self.write_packet(0, self.challenge + '\x00\x00\x00\x00')
+        self.write_packet(0, self.challenge + b'\x00\x00\x00\x00')
         try:
             type, id, buff = self.read_packet()
         except:
@@ -84,33 +84,44 @@ class MCQuery:
         buff = buff[11:]
         
         #Split around notch's silly token
-        items, players = buff.split('\x00\x00\x01player_\x00\x00')
+        items, players = buff.split(b'\x00\x00\x01player_\x00\x00')
         
         #Notch wrote "hostname" where he meant to write "motd"
-        items = 'motd' + items[8:] 
+        items = b'motd' + items[8:] 
         
         #Encode (k1, v1, k2, v2 ..) into a dict
-        items = items.split('\x00')
+        items = items.split(b'\x00')
         data = dict(zip(items[::2], items[1::2])) 
 
         #Remove final two null bytes
         players = players[:-2]
         
         #Split player list
-        if players: data['players'] = players.split('\x00')
+        if players: data['players'] = players.split(b'\x00')
         else:       data['players'] = []
         
         #Encode ints
-        for k in ('numplayers', 'maxplayers', 'hostport'):
-            data[k] = int(data[k])
+        for k in (b'numplayers', b'maxplayers', b'hostport'):
+            data[k.decode()] = int(data[k])
         
-        #Parse 'plugins'
-        s = data['plugins']
-        s = s.split(': ', 1)
+        #Parse 'plugins'`
+        s = data[b'plugins']
+        s = s.split(b': ', 1)
         data['server_mod'] = s[0]
         if len(s) == 1:
             data['plugins'] = []
         elif len(s) == 2:
-            data['plugins'] = s[1].split('; ')
+            data['plugins'] = list(map(bytes.decode, s[1].split(b'; ')))
 
-        return data
+        return dict(
+                motd = data[b'motd'],
+                gametype = data[b'gametype'].decode(),
+                game_id = data[b'game_id'].decode(),
+                version = data[b'version'].decode(),
+                plugins = data['plugins'],
+                map = data[b'map'].decode(),
+                numplayers = data['numplayers'],
+                maxplayers = data['maxplayers'],
+                hostip = data[b'hostip'].decode(),
+                hostport = data['hostport'],
+                server_mod = data['server_mod'].decode())

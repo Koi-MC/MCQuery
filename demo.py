@@ -1,11 +1,10 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import mcquery
 import time
+from pprint import pprint
 
-print 'Ctrl-C to exit'
-
-host = raw_input('Host (localhost): ')
-port = raw_input('Port (25565): ')
+host = input('Host (localhost): ')
+port = input('Port (25565): ')
 
 if host == '':
     host = 'localhost'
@@ -16,10 +15,10 @@ else:
 
 
 
-print "Connecting..."
+print("Connecting...")
 q = mcquery.MCQuery(host, port)
-print "Connected."
+print("Connected.")
 
 while True:
-    print q.full_stat()
+    pprint(q.full_stat())
     time.sleep(5)
