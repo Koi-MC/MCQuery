@@ -131,7 +131,7 @@ class MCQuery:
         data['hostport'] = struct.unpack('<h', buff[:2])[0]
         
         #Grab final string component: host name
-        data['hostname'] = buff[2:-1]
+        data['hostip'] = buff[2:-1]
         
         #Encode integer fields
         for k in ('numplayers', 'maxplayers'):
