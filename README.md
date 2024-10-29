@@ -54,3 +54,16 @@ FULLSTAT_PRINT_ORDER = [
     'players'
 ]
 ```
+
+# Credits
+Original script by barneygale:
+
+https://github.com/barneygale/MCQuery
+
+Brought to python3 by hatkidchan:
+
+https://github.com/hatkidchan/MCQuery
+
+Custom version with command line args and other simple configurables by Koi:
+
+https://github.com/Koi-MC/MCQuery
