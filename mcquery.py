@@ -3,17 +3,6 @@ import struct
 import argparse
 from pprint import pprint
 
-# Credits
-#
-# Original script by barneygale:
-# https://github.com/barneygale/MCQuery
-#
-# Brought to python3 by hatkidchan:
-# https://github.com/hatkidchan/MCQuery
-#
-# Custom version with command line args and other simple configurables by Koi:
-# https://github.com/Koi-MC/MCQuery
-
 # Usage Examples
 #
 # Query the server "example.com" on port 25565:
@@ -76,6 +65,7 @@ class MCQuery:
     retries = 0
     max_retries = 3
     timeout = 10
+    decode_format = "iso-8859-1"
     
     def __init__(self, host, port, **kargs):
         self.addr = (host, port)
@@ -136,21 +126,38 @@ class MCQuery:
         #buff = buff[4:]
         
         #Grab the first 5 string fields
-        data['motd'], data['gametype'], data['map'], data['numplayers'], data['maxplayers'], buff = buff.split(b'\x00', 5)
+        data['motd'], \
+        data['gametype'], \
+        data['map'], \
+        data['numplayers'], \
+        data['maxplayers'], \
+        buff = buff.decode(self.decode_format).split('\x00', 5)
         
         #Unpack a big-endian short for the port
+        if isinstance(buff, str):
+            buff = buff.encode(self.decode_format)
         data['hostport'] = struct.unpack('<h', buff[:2])[0]
         
         #Grab final string component: host name
-        data['hostip'] = buff[2:-1]
+        data['hostip'] = buff[2:-1].decode(self.decode_format)
         
         #Encode integer fields
         for k in ('numplayers', 'maxplayers'):
             data[k] = int(data[k])
 
-        #re-sort first, then do custom order second
-        sorted_basic_dict = {key: data[key] for key in sorted(data)}
-        custom_ordered_output = {key: sorted_basic_dict[key] for key in BASICSTAT_PRINT_ORDER if key in sorted_basic_dict}
+        #Create remapped dict obj pre-sorted, pre-decoded
+        basic_info_dict = {
+            'gametype': data['gametype'],
+            'hostip': data['hostip'],
+            'hostport': data['hostport'],
+            'map': data['map'],
+            'maxplayers': data['maxplayers'],
+            'motd': data['motd'],
+            'numplayers': data['numplayers']
+        }
+
+        #Do custom sort
+        custom_ordered_output = {key: basic_info_dict[key] for key in BASICSTAT_PRINT_ORDER if key in basic_info_dict}
 
         return custom_ordered_output
     
@@ -173,43 +180,49 @@ class MCQuery:
         items = b'motd' + items[8:] 
         
         #Encode (k1, v1, k2, v2 ..) into a dict
-        items = items.split(b'\x00')
+        items = (items.decode(self.decode_format)).split('\x00')
         data = dict(zip(items[::2], items[1::2])) 
 
         #Remove final two null bytes
         players = players[:-2]
         
         #Split player list
-        if players: data['players'] = players.split(b'\x00')
-        else:       data['players'] = []
+        if players: 
+            data['players'] = (players.decode(self.decode_format)).split('\x00')
+        else:
+            data['players'] = []
         
         #Encode ints
-        for k in (b'numplayers', b'maxplayers', b'hostport'):
-            data[k.decode()] = int(data[k])
+        for k in ('numplayers', 'maxplayers', 'hostport'):
+            data[k] = int(data[k])
         
         #Parse 'plugins'`
-        s = data[b'plugins']
-        s = s.split(b': ', 1)
+        #These things are confusing as heck because nobody allows viewing them so I'm just playing it as safe as possible
+        if isinstance(data['plugins'], bytes):
+            s = data['plugins'].decode(self.decode_format)  # Decode if it's bytes ¯\_(ツ)_/¯
+        else:
+            s = data['plugins']  # Use it directly if it's already a string ¯\_(ツ)_/¯
+        s = s.split(': ', 1)
         data['server_mod'] = s[0]
         if len(s) == 1:
             data['plugins'] = []
         elif len(s) == 2:
-            data['plugins'] = list(map(bytes.decode, s[1].split(b'; ')))
+            data['plugins'] = s[1].split('; ')
 
-        #Create dict obj pre-sorted
+        #Create remapped dict obj pre-sorted, pre-decoded
         full_info_dict = {
-            'game_id': data[b'game_id'].decode(),
-            'gametype': data[b'gametype'].decode(),
-            'hostip': data[b'hostip'].decode(),
+            'game_id': data['game_id'],
+            'gametype': data['gametype'],
+            'hostip': data['hostip'],
             'hostport': data['hostport'],
-            'map': data[b'map'].decode(),
+            'map': data['map'],
             'maxplayers': data['maxplayers'],
-            'motd': data[b'motd'],
+            'motd': data['motd'],
             'numplayers': data['numplayers'],
             'players': data['players'],
             'plugins': data['plugins'],
-            'server_mod': data['server_mod'].decode(),
-            'version': data[b'version'].decode()
+            'server_mod': data['server_mod'],
+            'version': data['version']
         }
 
         #Do custom sort
