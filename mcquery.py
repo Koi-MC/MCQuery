@@ -3,6 +3,17 @@ import struct
 import argparse
 from pprint import pprint
 
+# Credits
+#
+# Original script by barneygale:
+# https://github.com/barneygale/MCQuery
+#
+# Brought to python3 by hatkidchan:
+# https://github.com/hatkidchan/MCQuery
+#
+# Custom version with command line args and other simple configurables by Koi:
+# https://github.com/Koi-MC/MCQuery
+
 # Usage Examples
 #
 # Query the server "example.com" on port 25565:
